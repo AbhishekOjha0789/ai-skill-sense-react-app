@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Bricolage Grotesque Variable", system-ui, sans-serif;
+  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+  --color-ink-950: #070a11;
+  --color-ink-900: #0c111b;
+  --color-ink-800: #141b29;
+  --color-line: #222b3c;
+  --color-fg: #e8edf6;
+  --color-mute: #93a0b7;
+  --color-gold: #f2b84b;
+  --color-tech: #5cc8e8;
+  --color-fit: #ff8a65;
+  --color-fin: #6ee7a8;
+  --color-comm: #b79cff;
+}
+
+body { background: var(--color-ink-950); color: var(--color-fg); font-family: var(--font-sans); }
+:focus-visible { outline: 2px solid var(--color-gold); outline-offset: 2px; }
+
+/* Card spotlight: a soft gold glow that follows the pointer */
+.spot { position: relative; overflow: hidden; }
+.spot::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+  background: radial-gradient(340px circle at var(--x, 50%) var(--y, 50%), rgb(242 184 75 / .13), transparent 60%);
+}
+.spot:hover::before { opacity: 1; }
+.spot > * { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before { animation: none !important; transition: none !important; }
+}
