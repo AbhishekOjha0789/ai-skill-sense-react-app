@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Activity, Webhook, ChevronRight } from "lucide-react";
+import { Activity, Webhook, ChevronRight, Pencil } from "lucide-react";
 import { Card, Bar, Ring, TYPE_TEXT, TYPE_BAR } from "../components/ui";
 import { useApp } from "../App";
 
@@ -9,19 +9,32 @@ export default function Dashboard() {
   const { profile: p } = useApp();
   const level = Math.floor(p.total_xp / XP_PER_LEVEL) + 1;
   const into = p.total_xp % XP_PER_LEVEL;
-  const active = p.quests.filter((q) => q.progress < 1);
+  const active = p.quests.filter(
+    (q) =>
+      q.status !== "failed" &&
+      q.status !== "completed" &&
+      q.progress < 1,
+  );
 
   return (
     <div className="space-y-10">
       <Card className="flex flex-wrap items-center gap-6 p-6">
         <Ring level={level} pct={into / XP_PER_LEVEL} />
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="font-display text-4xl font-bold">{p.username}</h1>
           <p className="mt-1 text-mute">{p.total_xp} XP total</p>
           <p className="text-sm text-gold">
             {XP_PER_LEVEL - into} XP to level {level + 1}
           </p>
         </div>
+        <Link
+          to="/profile/edit"
+          state={{ openEditor: true }}
+          className="inline-flex items-center gap-2 rounded-lg border border-line px-3.5 py-2.5 text-sm font-semibold transition hover:border-gold/60 hover:bg-ink-800"
+        >
+          <Pencil size={15} aria-hidden />
+          Edit profile
+        </Link>
       </Card>
 
       <section>
@@ -91,11 +104,11 @@ export default function Dashboard() {
         <Card as={Link} to="/connect" className="flex items-center gap-4 p-5">
           <Activity className="text-fit" aria-hidden />
           <div>
-            <h3 className="font-semibold">Fitness app</h3>
+            <h3 className="font-semibold">Google Health Connect</h3>
             <p className="text-sm text-mute">
               {p.fitness_connected
                 ? "Connected"
-                : "Not connected. Connect to track workouts."}
+                : "Not connected. Connect to sync health activity."}
             </p>
           </div>
         </Card>

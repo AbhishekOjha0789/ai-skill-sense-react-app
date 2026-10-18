@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Btn, Card } from "../components/ui";
-import { useApp } from "../App";
+import { isProfileComplete, useApp } from "../App";
 
 function Field({ label, ...props }) {
   return (
@@ -24,7 +24,14 @@ export default function Auth() {
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  if (profile) return <Navigate to="/dashboard" replace />;
+  if (profile) {
+    return (
+      <Navigate
+        to={isProfileComplete(profile) ? "/dashboard" : "/profile"}
+        replace
+      />
+    );
+  }
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const submit = async (e) => {
@@ -61,7 +68,7 @@ export default function Auth() {
         <Field
           label="Password"
           type="password"
-          minLength={6}
+          minLength={8}
           autoComplete={signup ? "new-password" : "current-password"}
           value={form.password}
           onChange={set("password")}

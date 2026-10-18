@@ -1,11 +1,18 @@
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Btn, Card, Bar } from "../components/ui";
-import { useApp } from "../App";
+import { isProfileComplete, useApp } from "../App";
 
 export default function Home() {
   const { profile } = useApp();
-  if (profile) return <Navigate to="/dashboard" replace />;
+  if (profile) {
+    return (
+      <Navigate
+        to={isProfileComplete(profile) ? "/dashboard" : "/profile"}
+        replace
+      />
+    );
+  }
   return (
     <section className="relative isolate grid items-center gap-12 py-12 lg:grid-cols-[1.1fr_.9fr] lg:py-24">
       <motion.div
