@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
-import { Pencil, Zap } from "lucide-react";
+import { Loader2, Pencil, Zap } from "lucide-react";
 import { apiCall, getAuthToken, setAuthToken } from "./services/api";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Dashboard, { XP_PER_LEVEL } from "./pages/Dashboard";
 import { SkillPage, QuestPage } from "./pages/Detail";
 import Connect, { NotFound } from "./pages/Connect";
+import { useWakeUp } from "./services/wake";
 
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
@@ -344,10 +345,46 @@ class Boundary extends Component {
   }
 }
 
+function WakeBanner() {
+  const { status, slow, retry } = useWakeUp();
+  if (status === "ready") return null;
+
+  return (
+    <div role="status" aria-live="polite" className="relative border-b border-line bg-ink-900">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 py-2.5 text-sm">
+        {status === "waking" ? (
+          <>
+            <Loader2 size={16} className="animate-spin text-gold" aria-hidden />
+            <p className="text-mute">
+              <span className="text-fg">Server is waking up.</span>{" "}
+              {slow
+                ? "Cold start is taking a bit longer than usual. Almost there, please wait."
+                : "Please wait, the first load can take up to a minute."}
+            </p>
+          </>
+        ) : (
+          <>
+            <Zap size={16} className="text-gold" aria-hidden />
+            <p className="text-mute">
+              The server is taking longer than expected.{" "}
+              <button onClick={retry} className="text-gold underline">
+                Try again
+              </button>
+            </p>
+          </>
+        )}
+      </div>
+      {status === "waking" && <div className="wake-bar" aria-hidden />}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <Provider>
       <Header />
+      <WakeBanner />
+
       <main className="mx-auto max-w-6xl px-5 py-8">
         <Boundary>
           <Routes>

@@ -32,3 +32,17 @@ body { background: var(--color-ink-950); color: var(--color-fg); font-family: va
 @media (prefers-reduced-motion: reduce) {
   *, *::before { animation: none !important; transition: none !important; }
 }
+
+.wake-bar {
+  position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%;
+  overflow: hidden; background: transparent;
+}
+.wake-bar::after {
+  content: ""; position: absolute; inset: 0; width: 35%;
+  background: var(--color-gold);
+  animation: wake-slide 1.4s ease-in-out infinite;
+}
+@keyframes wake-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
