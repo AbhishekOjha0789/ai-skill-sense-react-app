@@ -1,7 +1,9 @@
 import { MOCK_PROFILE } from "../data/mock";
 
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 const TOKEN_KEY = "skillsense.access-token";
@@ -74,6 +76,10 @@ export async function apiCall(endpoint, method = "GET", data = null) {
       signal: controller.signal,
     });
     if (!res.ok) {
+      if (res.status === 401 && !endpoint.startsWith("/auth/login") && !endpoint.startsWith("/auth/register")) {
+        setAuthToken(null);
+        window.dispatchEvent(new CustomEvent("skillsense:unauthorized"));
+      }
       let message = `Request failed (${res.status})`;
       try {
         const body = await res.json();

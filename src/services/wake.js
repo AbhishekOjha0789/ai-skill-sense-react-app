@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 // Use the same base URL variable your services/api.js already uses
-const API = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const API = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const AGENT = (import.meta.env.VITE_AGENT_URL || "").replace(/\/$/, "");
 
 const STAMP = "skillsense.wake";

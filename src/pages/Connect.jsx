@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Copy, ExternalLink } from "lucide-react";
 import { Card, Btn } from "../components/ui";
@@ -48,6 +48,11 @@ export default function Connect() {
     };
   }, [notify]);
 
+  const refreshDashboard = useCallback(async () => {
+    const error = await refreshProfile();
+    if (error) notify(`Connection changed, but dashboard refresh failed: ${error}`);
+  }, [refreshProfile, notify]);
+
   useEffect(() => {
     if (!pairing) return undefined;
     let active = true;
@@ -70,7 +75,7 @@ export default function Connect() {
       active = false;
       window.clearInterval(interval);
     };
-  }, [pairing, notify, refreshProfile]);
+  }, [pairing, notify, refreshDashboard]);
 
   const copy = async (value, successMessage) => {
     try {
@@ -79,11 +84,6 @@ export default function Connect() {
     } catch {
       notify("Copy failed. Select the value and copy it manually.");
     }
-  };
-
-  const refreshDashboard = async () => {
-    const error = await refreshProfile();
-    if (error) notify(`Connection changed, but dashboard refresh failed: ${error}`);
   };
 
   const updateWebhook = async () => {

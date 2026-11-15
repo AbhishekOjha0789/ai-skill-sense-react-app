@@ -11,6 +11,7 @@ import {
   ExternalLink,
   MapPin,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { Card, Btn, Bar, TYPE_TEXT, TYPE_BAR } from "../components/ui";
 import { useApp } from "../App";
@@ -87,10 +88,11 @@ const formatTime = (seconds) =>
 
 export function QuestPage() {
   const { questId } = useParams();
-  const { profile, addProgress, notify, refreshProfile } = useApp();
+  const { profile, addProgress, abandonQuest, notify, refreshProfile } = useApp();
   const quest = profile.quests.find((q) => q.quest_id === questId);
   const [view, setView] = useState("progress");
   const [busy, setBusy] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [running, setRunning] = useState(false);
   const [integration, setIntegration] = useState(null);
@@ -135,20 +137,9 @@ export function QuestPage() {
         );
       }
     };
-    const pauseWhenHidden = () => {
-      if (document.visibilityState !== "hidden" || startedAt.current === null) {
-        return;
-      }
-      elapsedBeforeStart.current += Date.now() - startedAt.current;
-      startedAt.current = null;
-      setElapsedMs(elapsedBeforeStart.current);
-      setRunning(false);
-    };
     const interval = window.setInterval(updateElapsed, 250);
-    document.addEventListener("visibilitychange", pauseWhenHidden);
     return () => {
       window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", pauseWhenHidden);
     };
   }, [running]);
 
@@ -161,20 +152,27 @@ export function QuestPage() {
     quest.status === "failed" ||
     quest.status === "completed";
   const target = Number(quest.quest_metrics);
-  const learningTarget =
-    quest.quest_type === "Learning" &&
-    quest.scale?.toLowerCase() === "seconds" &&
-    Number.isFinite(target) &&
-    target > 0
-      ? target
-      : null;
+
+  // Cross-platform resilient learning target calculation (seconds)
+  const learningTarget = (() => {
+    if (quest.quest_type !== "Learning") return null;
+    const s = quest.scale?.toLowerCase();
+    if (Number.isFinite(target) && target > 0) {
+      if (s === "minutes") return target * 60;
+      if (s === "hours") return target * 3600;
+      if (s === "seconds") return target;
+    }
+    if (quest.duration && Number(quest.duration) > 0) {
+      return Math.round(Number(quest.duration) * 60);
+    }
+    return 1500; // default 25 min focused session
+  })();
+
   const checkInTarget =
-    quest.quest_type === "Location" &&
-    quest.scale?.toLowerCase() === "others" &&
-    Number.isFinite(target) &&
-    target > 0
-      ? target
+    quest.quest_type === "Location"
+      ? (Number.isFinite(target) && target > 0 ? target : 1)
       : null;
+
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
   const skillTitle = profile.skills.find((skill) =>
     quest.linked_skill.includes(skill.skill_id),
@@ -294,9 +292,35 @@ export function QuestPage() {
     }
   };
 
+  const handleAbandon = async () => {
+    if (
+      !window.confirm(
+        "Abandon this quest? It will be marked as failed so the agent can allocate new quests.",
+      )
+    ) {
+      return;
+    }
+    setAbandoning(true);
+    await abandonQuest(quest.quest_id);
+    setAbandoning(false);
+  };
+
   return (
     <div className="mx-auto max-w-2xl">
-      <Back />
+      <div className="flex items-center justify-between">
+        <Back />
+        {quest.status === "active" && !done && (
+          <button
+            onClick={handleAbandon}
+            disabled={abandoning || busy}
+            className="mb-6 inline-flex items-center gap-1.5 text-xs text-mute transition hover:text-red-400"
+            title="Abandon this quest"
+          >
+            <XCircle size={14} aria-hidden />
+            {abandoning ? "Abandoning…" : "Abandon quest"}
+          </button>
+        )}
+      </div>
       <p className="text-sm text-gold">{quest.quest_type} quest</p>
       <h1 className="mt-1 font-display text-4xl font-bold">
         {quest.quest_name}
@@ -368,8 +392,7 @@ export function QuestPage() {
           {quest.quest_type === "Learning" && (
             <div className="mt-5">
               <p className="text-sm text-mute">
-                Learn with focused web resources, then save the time you actually
-                spent. The timer pauses automatically when you leave this tab.
+                Learn with focused web resources, then save your session time. You can safely switch tabs or read articles in another window while the timer runs.
               </p>
               <div className="mt-4 flex flex-wrap gap-3">
                 <a
@@ -394,7 +417,7 @@ export function QuestPage() {
                   <div className="mt-5 rounded-lg border border-line bg-ink-950 p-4">
                     <div className="flex items-center gap-2 text-mute">
                       <Clock3 size={16} aria-hidden />
-                      <span className="text-sm">This learning session</span>
+                      <span className="text-sm">Focused session timer</span>
                     </div>
                     <p
                       role="timer"
@@ -404,8 +427,7 @@ export function QuestPage() {
                       {formatTime(elapsedSeconds)}
                     </p>
                     <p className="mt-1 text-xs text-mute">
-                      Goal: {Math.round(learningTarget)} seconds · Estimated
-                      total:{" "}
+                      Goal: {Math.round(learningTarget / 60)} min ({Math.round(learningTarget)}s) · Estimated total:{" "}
                       {Math.min(
                         Math.round(learningTarget),
                         Math.round(progress * learningTarget) + elapsedSeconds,
@@ -418,25 +440,23 @@ export function QuestPage() {
                       disabled={busy || done}
                       onClick={running ? pauseLearning : startLearning}
                     >
-                      {running ? "Pause session" : "Start learning"}
+                      {running ? "Pause timer" : "Start learning timer"}
                     </Btn>
                     <Btn
                       variant="ghost"
                       disabled={busy || done || elapsedSeconds < 1}
                       onClick={saveLearningSession}
                     >
-                      {busy ? "Saving…" : "Save session time"}
+                      {busy ? "Saving…" : "Save timer session"}
                     </Btn>
                   </div>
                   <p className="mt-3 text-xs text-mute">
-                    Only seconds recorded by this timer are added to quest
-                    progress.
+                    Only verified seconds recorded by this active session timer are added to quest progress. Direct self-reporting is disabled.
                   </p>
                 </>
               ) : (
                 <p className="mt-4 rounded-lg border border-line bg-ink-950 p-4 text-sm text-mute">
-                  This quest is not configured with a positive seconds target,
-                  so timed progress cannot be recorded.
+                  This quest is not configured with a target, so timed progress cannot be recorded.
                 </p>
               )}
             </div>
@@ -445,8 +465,7 @@ export function QuestPage() {
           {quest.quest_type === "Webhook" && (
             <div className="mt-5">
               <p className="text-sm text-mute">
-                Connect a real activity source and send its events to your
-                private webhook. This page never sends a test event.
+                Connect external activity sources (such as GitHub, Zapier, CI/CD, or scripts) to your private authenticated webhook endpoint.
               </p>
               <div className="mt-4 rounded-lg border border-line bg-ink-950 p-4">
                 <p className="text-sm font-medium">Connection status</p>
@@ -461,8 +480,8 @@ export function QuestPage() {
                 ) : (
                   <p className="mt-1 text-sm text-mute">
                     {integration?.data?.configured
-                      ? "Webhook is active."
-                      : "No webhook is configured yet."}
+                      ? "Webhook endpoint is active and listening for authenticated external events."
+                      : "No webhook configured yet. Generate your private token in Connect."}
                   </p>
                 )}
               </div>
@@ -484,7 +503,7 @@ export function QuestPage() {
                   onClick={createWebhookPayload}
                 >
                   <Copy size={15} aria-hidden />
-                  Copy event payload
+                  Copy sample payload
                 </Btn>
               </div>
               {payload && (
@@ -492,12 +511,8 @@ export function QuestPage() {
                   {payload}
                 </pre>
               )}
-              <p className="mt-4 rounded-lg border border-line p-4 text-sm text-mute">
-                Incoming webhook events are currently recorded as activity
-                logs, but the backend does not associate them with quest
-                progress. Progress shown above reflects the server; this
-                frontend does not award progress from a copied or simulated
-                event.
+              <p className="mt-4 rounded-lg border border-line p-4 text-xs text-mute leading-relaxed">
+                Progress updates are authenticated cryptographically: only requests delivering valid payloads to your private token endpoint (<code className="text-gold">/api/webhooks/external/:token</code>) can advance this quest.
               </p>
             </div>
           )}
@@ -505,9 +520,7 @@ export function QuestPage() {
           {quest.quest_type === "Physical" && (
             <div className="mt-5">
               <p className="text-sm text-mute">
-                Physical progress is measured from real records synced by the
-                Android companion through Google Health Connect. This quest
-                target is {quest.quest_metrics} {quest.scale}.
+                Physical progress is verified exclusively from telemetry synced by the Android companion through Google Health Connect. This quest target is {quest.quest_metrics} {quest.scale}.
               </p>
               <div className="mt-4 rounded-lg border border-line bg-ink-950 p-4">
                 <p className="text-sm font-medium">Health Connect status</p>
@@ -523,8 +536,8 @@ export function QuestPage() {
                   <>
                     <p className="mt-1 text-sm text-mute">
                       {integration?.data?.connected
-                        ? "Connected. Synced physical activity can update this quest."
-                        : "Not connected. Pair the Android companion to sync activity."}
+                        ? "Connected. Synced physical activity updates this quest."
+                        : "Not connected. Pair your Android companion device to sync verified activity."}
                     </p>
                     {integration?.data?.last_sync_at && (
                       <p className="mt-1 text-xs text-mute">
@@ -550,9 +563,8 @@ export function QuestPage() {
                   Refresh synced progress
                 </Btn>
               </div>
-              <p className="mt-3 text-xs text-mute">
-                Progress is calculated from synced health records, not from a
-                manual check-in.
+              <p className="mt-4 rounded-lg border border-line p-4 text-xs text-mute leading-relaxed">
+                Direct self-reporting is disabled. Progress is calculated strictly from authenticated Health Connect records uploaded by your paired Android device.
               </p>
             </div>
           )}

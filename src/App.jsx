@@ -183,10 +183,45 @@ function Provider({ children }) {
     return true;
   };
 
-  const signOut = () => {
+  const abandonQuest = async (id) => {
+    const r = await apiCall(
+      `/api/users/${profile.user_id}/quests/${id}/abandon`,
+      "POST",
+    );
+    if (!r.success) {
+      notify(`${r.error}. Quest could not be abandoned.`);
+      return false;
+    }
+    const quests = profile.quests.map((q) => {
+      if (q.quest_id !== id) return q;
+      return {
+        ...q,
+        status: "failed",
+      };
+    });
+    commit({
+      ...profile,
+      quests,
+    });
+    notify("Quest marked as abandoned.");
+    return true;
+  };
+
+  const signOut = useCallback(() => {
     setAuthToken(null);
     commit(null);
-  };
+  }, [commit]);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      signOut();
+      notify("Your session has expired. Please sign in again.");
+    };
+    window.addEventListener("skillsense:unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("skillsense:unauthorized", handleUnauthorized);
+    };
+  }, [signOut, notify]);
 
   useEffect(() => {
     if (!profile?.user_id || !getAuthToken()) return;
@@ -218,6 +253,7 @@ function Provider({ children }) {
         signIn,
         signOut,
         addProgress,
+        abandonQuest,
         refreshProfile,
         notify,
         saveProfile: async (data) => {
